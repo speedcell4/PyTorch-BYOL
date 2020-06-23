@@ -1,4 +1,5 @@
 import os
+
 import torch
 import torch.nn.functional as F
 import torchvision
@@ -31,12 +32,6 @@ class BYOLTrainer:
         for param_q, param_k in zip(self.online_network.parameters(), self.target_network.parameters()):
             param_k.data = param_k.data * self.m + param_q.data * (1. - self.m)
 
-    @staticmethod
-    def regression_loss(x, y):
-        x = F.normalize(x, dim=1)
-        y = F.normalize(y, dim=1)
-        return -2 * (x * y).sum(dim=-1)
-
     def initializes_target_network(self):
         # init momentum network as encoder net
         for param_q, param_k in zip(self.online_network.parameters(), self.target_network.parameters()):
@@ -45,8 +40,10 @@ class BYOLTrainer:
 
     def train(self, train_dataset):
 
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
-                                  num_workers=self.num_workers, drop_last=False, shuffle=True)
+        train_loader = DataLoader(
+            dataset=train_dataset, batch_size=self.batch_size,
+            num_workers=self.num_workers, drop_last=False, shuffle=True,
+        )
 
         niter = 0
         model_checkpoints_folder = os.path.join(self.writer.log_dir, 'checkpoints')
@@ -77,7 +74,7 @@ class BYOLTrainer:
                 self._update_target_network_parameters()  # update the key encoder
                 niter += 1
 
-            print("End of epoch {}".format(epoch_counter))
+            print(f'End of epoch {epoch_counter}')
 
         # save checkpoints
         self.save_model(os.path.join(model_checkpoints_folder, 'model.pth'))
@@ -92,12 +89,17 @@ class BYOLTrainer:
             targets_to_view_2 = self.target_network(batch_view_1)
             targets_to_view_1 = self.target_network(batch_view_2)
 
-        loss = self.regression_loss(predictions_from_view_1, targets_to_view_1)
-        loss += self.regression_loss(predictions_from_view_2, targets_to_view_2)
+        loss = self.regression_loss(predictions_from_view_1, targets_to_view_1) + \
+               self.regression_loss(predictions_from_view_2, targets_to_view_2)
         return loss.mean()
 
-    def save_model(self, PATH):
+    @staticmethod
+    def regression_loss(x, y):
+        x = F.normalize(x, dim=1)
+        y = F.normalize(y, dim=1)
+        return -2 * (x * y).sum(dim=-1)
 
+    def save_model(self, PATH):
         torch.save({
             'online_network_state_dict': self.online_network.state_dict(),
             'target_network_state_dict': self.target_network.state_dict(),

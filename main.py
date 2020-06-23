@@ -3,6 +3,7 @@ import os
 import torch
 import yaml
 from torchvision import datasets
+
 from data.multi_view_data_injector import MultiViewDataInjector
 from data.transforms import get_simclr_data_transforms
 from models.mlp_head import MLPHead
@@ -43,7 +44,7 @@ def main():
             print("Pre-trained weights not found. Training from scratch.")
 
     # predictor network
-    predictor = MLPHead(in_channels=online_network.projetion.net[-1].out_features,
+    predictor = MLPHead(in_channels=online_network.projection.net[-1].out_features,
                         **config['network']['projection_head']).to(device)
 
     # target encoder
